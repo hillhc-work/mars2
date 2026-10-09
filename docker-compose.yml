@@ -1,0 +1,104 @@
+services:
+
+  # 1. Transaction Reporting Dashboard Publisher Node
+  publisher-server:
+    container_name: publisher-server
+    build:
+      context: ./publisher/app
+      dockerfile: Dockerfile
+    ports:
+      - "12349:12349"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF_8
+    networks:
+      mars-pipeline-net:
+        aliases:
+          - reporting-publisher-server
+
+  # 2. Mars Core Consumer Node 1
+  mars-server-1:
+    container_name: mars-server-1
+    build:
+      context: ./mars_container/app
+      dockerfile: Dockerfile
+    command: ["12346"]
+    ports:
+      - "12346:12346"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Doracle.net.disableNio=true -Dfile.encoding=UTF_8
+    networks:
+      - mars-pipeline-net
+    depends_on:
+      - publisher-server
+
+  # 3. Mars Core Consumer Node 2
+  mars-server-2:
+    container_name: mars-server-2
+    build:
+      context: ./mars_container/app
+      dockerfile: Dockerfile
+    command: ["12347"]
+    ports:
+      - "12347:12347"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Doracle.net.disableNio=true -Dfile.encoding=UTF_8
+    networks:
+      - mars-pipeline-net
+    depends_on:
+      - publisher-server
+
+  # 4. Mars Core Consumer Node 3
+  mars-server-3:
+    container_name: mars-server-3
+    build:
+      context: ./mars_container/app
+      dockerfile: Dockerfile
+    command: ["12348"]
+    ports:
+      - "12348:12348"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Doracle.net.disableNio=true -Dfile.encoding=UTF_8
+    networks:
+      - mars-pipeline-net
+    depends_on:
+      - publisher-server
+
+  # 5. Central Routing Middleware Engine
+  transition-engine-server:
+    container_name: transition-engine-server
+    build:
+      context: ./transition_engine/app
+      dockerfile: Dockerfile
+    ports:
+      - "12345:12345"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF_8
+    networks:
+      - mars-pipeline-net
+    depends_on:
+      - mars-server-1
+      - mars-server-2
+      - mars-server-3
+
+  # 6. Real-Time File Stream Ingestion Driver
+  message-driver-stream:
+    container_name: message-driver-stream
+    build:
+      context: ./message_driver/app
+      dockerfile: Dockerfile
+    volumes:
+      - /home/hhill/Workspace/java_projects/mars_mvp/message_driver/app/data_input_files:/app/data_input_files
+    environment:
+      - JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF_8
+    networks:
+      mars-pipeline-net:
+        aliases:
+          - localhost
+          - 127.0.0.1
+    depends_on:
+      - transition-engine-server
+
+networks:
+  mars-pipeline-net:
+    name: mars-pipeline-net
+    external: true
